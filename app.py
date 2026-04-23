@@ -5,7 +5,7 @@ import io
 import base64
 
 app = Flask(__name__)
-RECIPE_FOLDER = os.path.expanduser("~/Documents/レシピPDF")
+RECIPE_FOLDER = os.path.join(os.path.dirname(__file__), "static/pdfs")
 
 def get_recipes():
     recipes = []
