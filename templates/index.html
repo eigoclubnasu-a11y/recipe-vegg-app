@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>野菜レシピ集</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5f5f0; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #4a7c59; color: white; padding: 14px 24px; font-size: 22px; font-weight: bold; }
+  .search-bar { background: #e8f0e9; padding: 10px 20px; display: flex; align-items: center; gap: 10px; }
+  .search-bar input { font-size: 15px; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; width: 300px; }
+  .main { display: flex; flex: 1; overflow: hidden; padding: 12px; gap: 12px; }
+  .list-panel { width: 260px; min-width: 200px; display: flex; flex-direction: column; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .list-count { font-size: 12px; color: #888; padding: 8px 12px 4px; }
+  .list-items { flex: 1; overflow-y: auto; }
+  .list-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+  .list-item:hover { background: #e8f5ec; }
+  .list-item.active { background: #4a7c59; color: white; }
+  .list-item .category { font-size: 11px; color: #999; margin-bottom: 2px; }
+  .list-item.active .category { color: #c8e6c9; }
+  .detail-panel { flex: 1; background: white; border-radius: 8px; overflow-y: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.1); padding: 24px; }
+  .placeholder { color: #bbb; font-size: 16px; text-align: center; margin-top: 80px; }
+  .recipe-title { font-size: 22px; font-weight: bold; color: #2d5a3d; margin-bottom: 16px; }
+  .recipe-text { font-size: 14px; line-height: 1.8; color: #444; margin: 12px 0; }
+  .recipe-para { margin-bottom: 10px; }
+  .recipe-img { max-width: 100%; margin: 12px 0; border-radius: 6px; }
+  .page-sep { border: none; border-top: 1px solid #e0e0e0; margin: 20px 0; }
+  .loading { color: #888; font-size: 14px; margin-top: 40px; text-align: center; }
+  .print-btn { display: inline-block; background: #4a7c59; color: white; border: none; border-radius: 6px; padding: 8px 18px; font-size: 14px; cursor: pointer; margin-bottom: 16px; }
+  .print-btn:hover { background: #3a6347; }
+  @media print {
+    header, .search-bar, .list-panel, .print-btn { display: none !important; }
+    .main { display: block; padding: 0; }
+    .detail-panel { box-shadow: none; overflow: visible; }
+  }
+</style>
+</head>
+<body>
+<header>野菜レシピ集</header>
+<div class="search-bar">
+  <label>検索：</label>
+  <input type="text" id="search" placeholder="野菜名を入力..." oninput="search()">
+</div>
+<div class="main">
+  <div class="list-panel">
+    <div class="list-count" id="count">読み込み中...</div>
+    <div class="list-items" id="list"></div>
+  </div>
+  <div class="detail-panel" id="detail">
+    <div class="placeholder">← 左のレシピをクリックしてください</div>
+  </div>
+</div>
+
+<script>
+let allRecipes = [];
+let current = null;
+
+async function loadList() {
+  const res = await fetch('/api/recipes');
+  allRecipes = await res.json();
+  renderList(allRecipes);
+}
+
+function renderList(recipes) {
+  const list = document.getElementById('list');
+  document.getElementById('count').textContent = recipes.length + '件';
+  list.innerHTML = recipes.map((r, i) =>
+    `<div class="list-item${r.file === current ? ' active' : ''}" onclick="showRecipe('${r.file}', this)">
+      ${r.category ? `<div class="category">${r.category}</div>` : ''}
+      ${r.name}
+    </div>`
+  ).join('');
+}
+
+function search() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = allRecipes.filter(r => r.name.toLowerCase().includes(q));
+  renderList(filtered);
+}
+
+async function showRecipe(file, el) {
+  current = file;
+  document.querySelectorAll('.list-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+
+  const detail = document.getElementById('detail');
+  detail.innerHTML = '<div class="loading">読み込み中...</div>';
+
+  const res = await fetch('/api/recipe/' + encodeURIComponent(file));
+  const data = await res.json();
+
+  let html = `<button class="print-btn" onclick="window.print()">🖨 印刷</button>
+<div class="recipe-title">${data.name}</div>`;
+  data.pages.forEach((page, i) => {
+    if (i > 0) html += '<hr class="page-sep">';
+    if (page.text) {
+      const paras = page.text.split(/\n\n/).map(p => p.trim()).filter(p => p);
+      html += `<div class="recipe-text">${paras.map(p => `<p class="recipe-para">${escHtml(p).replace(/\n/g, '<br>')}</p>`).join('')}</div>`;
+    }
+    page.images.forEach(img => {
+      html += `<img class="recipe-img" src="${img}">`;
+    });
+  });
+
+  detail.innerHTML = html;
+  detail.scrollTop = 0;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadList();
+</script>
+</body>
+</html>
