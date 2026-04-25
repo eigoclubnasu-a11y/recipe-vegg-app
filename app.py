@@ -130,4 +130,4 @@ def api_recipe(filename):
 if __name__ == "__main__":
     import webbrowser, threading
     threading.Timer(1.0, lambda: webbrowser.open("http://localhost:8765")).start()
-    app.run(host="0.0.0.0", port=8765, debug=False)
+    app.run(host="0.0.0.0", port=10000, debug=False)
